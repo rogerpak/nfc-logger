@@ -1,101 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC Scan for Google Form</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        button { padding: 10px 20px; font-size: 16px; }
-        #status { margin-top: 20px; color: green; }
-    </style>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; }
+    #status { margin-top: 20px; color: green; }
+  </style>
 </head>
 <body>
-    <h1>Scan NFC Tag to Log Data</h1>
-    <p>Tap the button below, then bring the NFC tag close to your phone.</p>
-    <button id="scanButton">Start NFC Scan</button>
-    <div id="status"></div>
+  <h1>Log NFC Scan Data</h1>
+  <p>Scan the NFC tag to open this page with device ID. Tap below to fetch and submit time, date, and GPS.</p>
+  <button id="submitButton">Fetch and Submit Data</button>
+  <div id="status"></div>
 
-    <script>
-        const scanButton = document.getElementById('scanButton');
-        const statusDiv = document.getElementById('status');
+  <script>
+    const deviceId = '<?= deviceId ?>';  // Device ID from NFC tag URL param
+    const statusDiv = document.getElementById('status');
+    const submitButton = document.getElementById('submitButton');
 
-        scanButton.addEventListener('click', async () => {
-            if (!('NDEFReader' in window)) {
-                statusDiv.textContent = 'Web NFC not supported in this browser.';
-                return;
-            }
+    submitButton.addEventListener('click', () => {
+      statusDiv.textContent = 'Fetching data...';
 
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan();
-                statusDiv.textContent = 'Scanning for NFC tag...';
+      const now = new Date();
+      const time = now.toLocaleTimeString();
+      const date = now.toLocaleDateString();
 
-                ndef.onreading = event => {
-                    const message = event.message;
-                    let deviceId = '';
+      navigator.geolocation.getCurrentPosition(position => {
+        const gps = `${position.coords.latitude},${position.coords.longitude}`;
+        statusDiv.textContent = `Captured: Device ID=${deviceId}, Time=${time}, Date=${date}, GPS=${gps}. Submitting...`;
 
-                    // Read text record from NFC tag (assuming it's a text record with device ID)
-                    for (const record of message.records) {
-                        if (record.recordType === 'text') {
-                            const textDecoder = new TextDecoder(record.encoding);
-                            deviceId = textDecoder.decode(record.data);
-                            break;
-                        }
-                    }
+        const data = { deviceId, time, date, gps };
+        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).submitFormData(data);
+      }, error => {
+        statusDiv.textContent = 'GPS access denied: ' + error.message;
+      }, { enableHighAccuracy: true });
+    });
 
-                    if (!deviceId) {
-                        statusDiv.textContent = 'No device ID found on tag.';
-                        return;
-                    }
+    function onSuccess(message) {
+      statusDiv.textContent = message;
+    }
 
-                    // Capture time and date
-                    const now = new Date();
-                    const time = now.toLocaleTimeString();
-                    const date = now.toLocaleDateString();
-
-                    // Capture GPS location
-                    navigator.geolocation.getCurrentPosition(position => {
-                        const gps = `${position.coords.latitude},${position.coords.longitude}`;
-                        statusDiv.textContent = `Captured: Device ID=${deviceId}, Time=${time}, Date=${date}, GPS=${gps}. Submitting...`;
-                        console.log(`Submitting data: ${JSON.stringify({deviceId, time, date, gps})}`);
-
-                        // Submit to Google Form
-                        submitToForm(deviceId, time, date, gps);
-                    }, error => {
-                        statusDiv.textContent = 'GPS access denied: ' + error.message;
-                    }, { enableHighAccuracy: true });
-                };
-
-                ndef.onreadingerror = () => {
-                    statusDiv.textContent = 'Error reading NFC tag.';
-                };
-            } catch (error) {
-                statusDiv.textContent = 'Scan failed: ' + error.message;
-            }
-        });
-
-        async function submitToForm(deviceId, time, date, gps) {
-            const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSd_VhgXgAQCK4v_y1hzU5aJYg1a1x3hkyboPZPV9NlIPsqnEA/formResponse';
-            const data = new URLSearchParams();
-            data.append('entry.2033431978', deviceId);
-            data.append('entry.1294155644', time);
-            data.append('entry.1762408475', date);
-            data.append('entry.952642931', gps);
-
-            try {
-                const response = await fetch(formUrl, {
-                    method: 'POST',
-                    body: data,
-                    mode: 'no-cors'
-                });
-                statusDiv.textContent = 'Data submitted! Check your Google Sheet for updates.';
-                console.log('Submission attempt complete (no-cors mode limits further details).');
-            } catch (error) {
-                statusDiv.textContent = 'Submission failed: ' + error.message;
-                console.error('Fetch error:', error);
-            }
-        }
-    </script>
+    function onFailure(error) {
+      statusDiv.textContent = 'Submission failed: ' + error;
+    }
+  </script>
 </body>
 </html>
