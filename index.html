@@ -76,10 +76,10 @@
         async function submitToForm(deviceId, time, date, gps) {
             const formUrl = 'https://docs.google.com/forms/d/e/1kmpHKrepQU94WKEdmPNRBYAQi5YMd3k-E-Cy5kpBGKs/formResponse'; // Replace with your endpoint
             const formData = new FormData();
-            formData.append('entry.123', deviceId); // Replace with your Device ID field ID
-            formData.append('entry.987654321', time);    // Replace with your Time field ID
-            formData.append('entry.112233445', date);    // Replace with your Date field ID
-            formData.append('entry.556677889', gps);     // Replace with your GPS field ID
+            formData.append('entry.235941319', deviceId); // Replace with your Device ID field ID
+            formData.append('entry.1819602727', time);    // Replace with your Time field ID
+            formData.append('entry.1893295051', date);    // Replace with your Date field ID
+            formData.append('entry.1846661584', gps);     // Replace with your GPS field ID
 
             try {
                 const response = await fetch(formUrl, {
