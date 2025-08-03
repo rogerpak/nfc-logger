@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Scan for Google Form</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; }
+        #status { margin-top: 20px; color: green; }
+    </style>
+</head>
+<body>
+    <h1>Scan NFC Tag to Log Data</h1>
+    <p>Tap the button below, then bring the NFC tag close to your phone.</p>
+    <button id="scanButton">Start NFC Scan</button>
+    <div id="status"></div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const statusDiv = document.getElementById('status');
+
+        scanButton.addEventListener('click', async () => {
+            if (!('NDEFReader' in window)) {
+                statusDiv.textContent = 'Web NFC not supported in this browser.';
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                statusDiv.textContent = 'Scanning for NFC tag...';
+
+                ndef.onreading = event => {
+                    const message = event.message;
+                    let deviceId = '';
+
+                    // Read text record from NFC tag (assuming it's a text record with device ID)
+                    for (const record of message.records) {
+                        if (record.recordType === 'text') {
+                            const textDecoder = new TextDecoder(record.encoding);
+                            deviceId = textDecoder.decode(record.data);
+                            break;
+                        }
+                    }
+
+                    if (!deviceId) {
+                        statusDiv.textContent = 'No device ID found on tag.';
+                        return;
+                    }
+
+                    // Capture time and date
+                    const now = new Date();
+                    const time = now.toLocaleTimeString();
+                    const date = now.toLocaleDateString();
+
+                    // Capture GPS location
+                    navigator.geolocation.getCurrentPosition(position => {
+                        const gps = `${position.coords.latitude},${position.coords.longitude}`;
+
+                        // Submit to Google Form
+                        submitToForm(deviceId, time, date, gps);
+                    }, error => {
+                        statusDiv.textContent = 'GPS access denied: ' + error.message;
+                    }, { enableHighAccuracy: true });
+                };
+
+                ndef.onreadingerror = () => {
+                    statusDiv.textContent = 'Error reading NFC tag.';
+                };
+            } catch (error) {
+                statusDiv.textContent = 'Scan failed: ' + error.message;
+            }
+        });
+
+        async function submitToForm(deviceId, time, date, gps) {
+            const formUrl = 'https://docs.google.com/forms/d/e/1bF28NV-W3frSLnvbCclmK4WiE7WMa6eBVnWVYIKM9F4/formResponse'; // Replace with your endpoint
+            const formData = new FormData();
+            formData.append('entry.123', deviceId); // Replace with your Device ID field ID
+            formData.append('entry.987654321', time);    // Replace with your Time field ID
+            formData.append('entry.112233445', date);    // Replace with your Date field ID
+            formData.append('entry.556677889', gps);     // Replace with your GPS field ID
+
+            try {
+                const response = await fetch(formUrl, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'no-cors' // Needed for cross-origin
+                });
+                statusDiv.textContent = 'Data submitted successfully!';
+            } catch (error) {
+                statusDiv.textContent = 'Submission failed: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
