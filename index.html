@@ -57,6 +57,8 @@
                     // Capture GPS location
                     navigator.geolocation.getCurrentPosition(position => {
                         const gps = `${position.coords.latitude},${position.coords.longitude}`;
+                        statusDiv.textContent = `Captured: Device ID=${deviceId}, Time=${time}, Date=${date}, GPS=${gps}. Submitting...`;
+                        console.log(`Submitting data: ${JSON.stringify({deviceId, time, date, gps})}`);
 
                         // Submit to Google Form
                         submitToForm(deviceId, time, date, gps);
@@ -74,22 +76,24 @@
         });
 
         async function submitToForm(deviceId, time, date, gps) {
-            const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSd_VhgXgAQCK4v_y1hzU5aJYg1a1x3hkyboPZPV9NlIPsqnEA/formResponse'; // Replace with your endpoint
-            const formData = new FormData();
-            formData.append('entry.2033431978', deviceId); // Replace with your Device ID field ID
-            formData.append('entry.1294155644', time);    // Replace with your Time field ID
-            formData.append('entry.1762408475', date);    // Replace with your Date field ID
-            formData.append('entry.952642931', gps);     // Replace with your GPS field ID
+            const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSd_VhgXgAQCK4v_y1hzU5aJYg1a1x3hkyboPZPV9NlIPsqnEA/formResponse';
+            const data = new URLSearchParams();
+            data.append('entry.2033431978', deviceId);
+            data.append('entry.1294155644', time);
+            data.append('entry.1762408475', date);
+            data.append('entry.952642931', gps);
 
             try {
                 const response = await fetch(formUrl, {
                     method: 'POST',
-                    body: formData,
-                    mode: 'no-cors' // Needed for cross-origin
+                    body: data,
+                    mode: 'no-cors'
                 });
-                statusDiv.textContent = 'Data submitted successfully!';
+                statusDiv.textContent = 'Data submitted! Check your Google Sheet for updates.';
+                console.log('Submission attempt complete (no-cors mode limits further details).');
             } catch (error) {
                 statusDiv.textContent = 'Submission failed: ' + error.message;
+                console.error('Fetch error:', error);
             }
         }
     </script>
