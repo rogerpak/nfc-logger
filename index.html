@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC Scan for Google Sheet</title>
+    <title>NFC Scan for Google Form</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         button { padding: 10px 20px; font-size: 16px; }
@@ -35,6 +35,7 @@
                     const message = event.message;
                     let deviceId = '';
 
+                    // Read text record from NFC tag (assuming it's a text record with device ID)
                     for (const record of message.records) {
                         if (record.recordType === 'text') {
                             const textDecoder = new TextDecoder(record.encoding);
@@ -48,16 +49,19 @@
                         return;
                     }
 
+                    // Capture time and date
                     const now = new Date();
                     const time = now.toLocaleTimeString();
                     const date = now.toLocaleDateString();
 
+                    // Capture GPS location
                     navigator.geolocation.getCurrentPosition(position => {
                         const gps = `${position.coords.latitude},${position.coords.longitude}`;
-                        statusDiv.textContent = `Captured: Device ID=${deviceId}, Time=${time}, Date=${date}, GPS=${gps}. Logging...`;
+                        statusDiv.textContent = `Captured: Device ID=${deviceId}, Time=${time}, Date=${date}, GPS=${gps}. Submitting...`;
+                        console.log(`Submitting data: ${JSON.stringify({deviceId, time, date, gps})}`);
 
-                        // Send data to Apps Script to log in Sheet
-                        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).logData(deviceId, time, date, gps);
+                        // Submit to Google Form
+                        submitToForm(deviceId, time, date, gps);
                     }, error => {
                         statusDiv.textContent = 'GPS access denied: ' + error.message;
                     }, { enableHighAccuracy: true });
@@ -71,12 +75,26 @@
             }
         });
 
-        function onSuccess(message) {
-            statusDiv.textContent = message; // e.g., 'Data logged successfully!'
-        }
+        async function submitToForm(deviceId, time, date, gps) {
+            const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSd_VhgXgAQCK4v_y1hzU5aJYg1a1x3hkyboPZPV9NlIPsqnEA/formResponse';
+            const data = new URLSearchParams();
+            data.append('entry.2033431978', deviceId);
+            data.append('entry.1294155644', time);
+            data.append('entry.1762408475', date);
+            data.append('entry.952642931', gps);
 
-        function onFailure(error) {
-            statusDiv.textContent = 'Logging failed: ' + error;
+            try {
+                const response = await fetch(formUrl, {
+                    method: 'POST',
+                    body: data,
+                    mode: 'no-cors'
+                });
+                statusDiv.textContent = 'Data submitted! Check your Google Sheet for updates.';
+                console.log('Submission attempt complete (no-cors mode limits further details).');
+            } catch (error) {
+                statusDiv.textContent = 'Submission failed: ' + error.message;
+                console.error('Fetch error:', error);
+            }
         }
     </script>
 </body>
